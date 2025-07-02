@@ -1,48 +1,26 @@
 #include <windows.h>
 #include <stdio.h>
 
-typedef NTSTATUS(WINAPI *RtlAdjustPrivilegeFunc)(
-    ULONG Privilege,
-    BOOLEAN Enable,
-    BOOLEAN CurrentThread,
-    PBOOLEAN Enabled);
-
-typedef NTSTATUS(WINAPI *NtRaiseHardErrorFunc)(
-    NTSTATUS ErrorStatus,
-    ULONG NumberOfParameters,
-    ULONG UnicodeStringParameterMask,
-    PULONG_PTR Parameters,
-    ULONG ValidResponseOption,
-    PULONG Response);
-
 int main()
 {
-  BOOLEAN bEnabled;
-  ULONG uResp;
-
-  HMODULE hNtdll = LoadLibraryA("ntdll.dll");
-  if (!hNtdll)
+  BOOLEAN enabled;
+  ULONG resp;
+  HMODULE ntdll = LoadLibraryA("ntdll.dll");
+  if (!ntdll)
   {
     printf("Failed to load ntdll.dll\n");
     return 1;
   }
-
-  RtlAdjustPrivilegeFunc RtlAdjustPrivilege =
-      (RtlAdjustPrivilegeFunc)GetProcAddress(hNtdll, "RtlAdjustPrivilege");
-  NtRaiseHardErrorFunc NtRaiseHardError =
-      (NtRaiseHardErrorFunc)GetProcAddress(hNtdll, "NtRaiseHardError");
-
+  NTSTATUS(WINAPI * RtlAdjustPrivilege)(ULONG, BOOLEAN, BOOLEAN, PBOOLEAN) =
+      (NTSTATUS(WINAPI *)(ULONG, BOOLEAN, BOOLEAN, PBOOLEAN))GetProcAddress(ntdll, "RtlAdjustPrivilege");
+  NTSTATUS(WINAPI * NtRaiseHardError)(NTSTATUS, ULONG, ULONG, PULONG_PTR, ULONG, PULONG) =
+      (NTSTATUS(WINAPI *)(NTSTATUS, ULONG, ULONG, PULONG_PTR, ULONG, PULONG))GetProcAddress(ntdll, "NtRaiseHardError");
   if (!RtlAdjustPrivilege || !NtRaiseHardError)
   {
     printf("Failed to resolve functions\n");
     return 1;
   }
-
-  // Enable SeShutdownPrivilege
-  RtlAdjustPrivilege(19, TRUE, FALSE, &bEnabled);
-
-  // Cause a hard error (STATUS_ASSERTION_FAILURE = 0xC0000420)
-  NtRaiseHardError(0xC0000420, 0, 0, NULL, 6, &uResp);
-
+  RtlAdjustPrivilege(19, TRUE, FALSE, &enabled);
+  NtRaiseHardError(0xC0000420, 0, 0, NULL, 6, &resp);
   return 0;
 }
